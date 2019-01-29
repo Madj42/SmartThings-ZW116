@@ -6,7 +6,6 @@
  *	  Justin Dybedahl (madj42)
  *
  *    Thanks to Kevin LaFramboise (krlaframboise) for sharing the base DTH (Zooz ZEN15).
- *
  *    
  *
  *  Changelog:
@@ -591,7 +590,7 @@ private getInstantPowerValuesParam() {
 }
 
 private getinstantPowerFrequencyParam() {
-	return createConfigParamMap(111, "Instantaneous Power Report Frequency", 4, ["10 Seconds${defaultOptionSuffix}":240, "30 Seconds":30, "1 Minute":60, "2 Minutes":120, "5 Minutes":300], "instantPowerFrequency")
+	return createConfigParamMap(111, "Instantaneous Power Report Frequency", 4, ["10 Seconds${defaultOptionSuffix}":10, "30 Seconds":30, "1 Minute":60, "2 Minutes":120, "5 Minutes":300], "instantPowerFrequency")
 }
 
 private getOnOffNotificationsParam() {
