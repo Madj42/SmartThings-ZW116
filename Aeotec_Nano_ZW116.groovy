@@ -6,12 +6,19 @@
  *	  Justin Dybedahl (madj42)
  *
  *    Thanks to Kevin LaFramboise (krlaframboise) for sharing the base DTH (Zooz ZEN15).
- *    
+ *
  *
  *  Changelog:
  *
  *    1.0 (01/28/2019)
  *      - Initial Release
+ *    1.1 (01/31/2019)
+ *      - Fixed toggle for debug messaging.
+ * 		- Added toggle for trace messaging to avoid log spamming.
+ *		- Added toggle for disabling switch in event device is only used for power metering.
+ *      - Fixed trace log message that reported old parameter value in the event of a change.
+ *		- Added versioning and naming/link to DTH settings.
+ *		- Added LED control parameter and more options for Instantaneous Power Values parameter.
  *
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -64,10 +71,11 @@ metadata {
 	simulator { }
 	
 	preferences {
+
 		configParams?.each {			
 			getOptionsInput(it)
 		}
-		
+        
 		input "energyPrice", "decimal",
 			title: "\$/kWh Cost:",
 			defaultValue: energyPriceSetting,
@@ -84,7 +92,12 @@ metadata {
 			getBoolInput("display${it}", "Display ${it} Activity", true)
 		}
 
-		getBoolInput("debugOutput", "Enable Debug Logging", true)
+		getBoolInput("disableSwitch", "Disable On/Off Switch", false)
+		getBoolInput("traceOutput", "Enable Trace Logging", false)
+        getBoolInput("debugOutput", "Enable Debug Logging", false)
+        
+        input title: "", description: "Aeotec Nano Switch w/ Power Metering v${clientVersion()}", displayDuringSetup: false, type: "paragraph", element: "paragraph", required: true
+        input title: "", description: "http://www.github.com/Madj42/SmartThings-ZW116", displayDuringSetup: false, type: "paragraph", element: "paragraph"
 	}
 
 	tiles(scale: 2) {
@@ -125,6 +138,10 @@ metadata {
 		main "switch"
 		details(["switch", "power", "energy", "refresh", "voltage", "current", "reset", "history", "firmwareVersion"])
 	}
+}
+
+def clientVersion() {
+	return "1.1"
 }
 
 private getOptionsInput(param) {
@@ -203,10 +220,11 @@ def configure() {
 }
 
 private updateConfigVal(param) {
-	def cmds = []	
+	def cmds = []
 	if (hasPendingChange(param)) {
+    	def oldVal = getParamStoredIntVal(param)
 		def newVal = getParamIntVal(param)
-		log.trace "${param.name}(#${param.num}): changing ${getParamStoredIntVal(param)} to ${newVal}"
+        logTrace "${param.name}(#${param.num}): changing ${getParamStoredIntVal(param)} to ${newVal}"
 		cmds << configSetCmd(param, newVal)
 		cmds << configGetCmd(param)
 	}	
@@ -234,13 +252,13 @@ void updateHealthCheckInterval() {
 }
 
 def ping() {
-	log.debug "Pinging device because it has not checked in"
+	logDebug "Pinging device because it has not checked in"
 	return [switchBinaryGetCmd()]
 }
 
 
 def on() {
-	log.trace "Turning On"
+	logTrace "Turning On"
 	return delayBetweenCmds([
 		switchBinarySetCmd(0xFF),
 		switchBinaryGetCmd()
@@ -248,15 +266,19 @@ def on() {
 }
 
 def off() {
-	log.trace "Turning Off"
-	return delayBetweenCmds([
-		switchBinarySetCmd(0x00),
-		switchBinaryGetCmd()
-	])
+	if (disableSwitchSetting) {
+    logTrace "Switch is disabled"
+    } else {
+		logTrace "Turning Off"
+		return delayBetweenCmds([
+			switchBinarySetCmd(0x00),
+			switchBinaryGetCmd()
+		])
+    }
 }
 
 def refresh() {
-	log.trace "Refreshing"
+	logTrace "Refreshing"
 	return delayBetweenCmds([
 		switchBinaryGetCmd(),
 		meterGetCmd(meterEnergy),
@@ -267,7 +289,7 @@ def refresh() {
 }
 
 def reset() {
-	log.trace "Resetting"
+	logTrace "Resetting"
 	["power", "voltage", "current"].each {
 		sendEvent(createEventMap("${it}Low", getAttrVal(it), false))
 		sendEvent(createEventMap("${it}High", getAttrVal(it), false))
@@ -383,7 +405,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport 
 	
 	if (configParam) {
 		def name = configParam.options?.find { it.value == val}?.key
-		//log.Debug "${configParam.name}(#${configParam.num}) = ${name != null ? name : val} (${val})"
+		logDebug "${configParam.name}(#${configParam.num}) = ${name != null ? name : val} (${val})"
 		state["configVal${cmd.parameterNumber}"] = val
 		
 //		if (configParam.num == overloadProtectionParam.num) {
@@ -392,32 +414,32 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport 
 		
 	}	
 	else {
-		log.debug "Parameter ${cmd.parameterNumber} = ${val}"
+		logDebug "Parameter ${cmd.parameterNumber} = ${val}"
 	}	
 	return []
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
-	log.Trace "VersionReport: ${cmd}"
+	logTrace "VersionReport: ${cmd}"
 	
 	def version = "${cmd.applicationVersion}.${cmd.applicationSubVersion}"
 	
 	if (version != device.currentValue("firmwareVersion")) {
-		log.Debug "Firmware: ${version}"
+		logDebug "Firmware: ${version}"
 		sendEvent(name: "firmwareVersion", value: version, displayed:false)
 	}
 	return []	
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
-	log.trace "SwitchBinaryReport: ${cmd}"
+	logTrace "SwitchBinaryReport: ${cmd}"
 	def result = []
 	result << createSwitchEvent(cmd.value, "digital")
 	return result
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-	log.trace "BasicReport: ${cmd}"
+	logTrace "BasicReport: ${cmd}"
 	def result = []
 	result << createSwitchEvent(cmd.value, "physical")
 	return result
@@ -431,7 +453,7 @@ private createSwitchEvent(value, type) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
-	log.trace "MeterReport: $cmd"
+	logTrace "MeterReport: $cmd"
 	def result = []	
 	def val = roundTwoPlaces(cmd.scaledMeterValue)
 		
@@ -451,7 +473,7 @@ def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
 			meter = meterCurrent
 			break
 		default:
-			log.debug "Unknown Meter Scale: $cmd"
+			logDebug "Unknown Meter Scale: $cmd"
 	}
 
 	if (meter?.limit && val > meter.limit) {
@@ -550,9 +572,9 @@ def refreshHistory() {
 		items["${it}High"] = "${it.capitalize()} - High"
 	}
 	
-	if (getParamStoredIntVal(overloadProtectionParam) == 0) {
-		history += "*** Overload Protection Disabled ***\n"
-	}
+//	if (getParamStoredIntVal(overloadProtectionParam) == 0) {
+//		history += "*** Overload Protection Disabled ***\n"
+//	}
 	
 	items.each { attrName, caption ->
 		def attr = device.currentState("${attrName}")
@@ -564,7 +586,7 @@ def refreshHistory() {
 }
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
-	log.debug "Unhandled zwaveEvent: $cmd"
+	logDebug "Unhandled zwaveEvent: $cmd"
 	return []
 }
 
@@ -575,7 +597,7 @@ private getConfigParams() {
 		instantPowerValuesParam,
 		instantPowerFrequencyParam,
 //		onOffNotificationsParam,
-//		ledIndicatorParam,
+		ledIndicatorParam,
 //		powerValueChangeParam,
 //		powerPercentageChangeParam,
 //		powerReportIntervalParam,
@@ -586,28 +608,28 @@ private getConfigParams() {
 }
 
 private getInstantPowerValuesParam() {
-	return createConfigParamMap(101, "Instantaneous Power Report Return", 4, ["All${defaultOptionSuffix}":15, "kWh/Watt":3], "instantPowerValues")
+	return createConfigParamMap(101, "Instantaneous Power Report Values", 4, ["Current":8, "kWh/Watt":9, "Current/Watt":10, "Current/Watt/kWh":11, "Current/Voltage":12, "Current/Voltage/kWh":13, "Current/Voltage/Watt":14, "All${defaultOptionSuffix}":15], "instantPowerValues")
 }
 
 private getinstantPowerFrequencyParam() {
-	return createConfigParamMap(111, "Instantaneous Power Report Frequency", 4, ["10 Seconds${defaultOptionSuffix}":10, "30 Seconds":30, "1 Minute":60, "2 Minutes":120, "5 Minutes":300], "instantPowerFrequency")
+	return createConfigParamMap(111, "Instantaneous Power Report Frequency", 4, ["10 Seconds":10, "30 Seconds${defaultOptionSuffix}":30, "1 Minute":60, "2 Minutes":120, "5 Minutes":300], "instantPowerFrequency")
 }
 
-private getOnOffNotificationsParam() {
-	return createConfigParamMap(24, "On/Off Notifications", 1, null, null, 2) // 2:Manual switch only
-}
+//private getOnOffNotificationsParam() {
+//	return createConfigParamMap(24, "On/Off Notifications", 1, null, null, 2) // 2:Manual switch only
+//}
 
 private getLedIndicatorParam() {
-	return createConfigParamMap(27, "LED Power Consumption Indicator", 1, ["Always Show${defaultOptionSuffix}":0, "Show for 5 seconds when turned on or off":1], "ledIndicator")
+	return createConfigParamMap(83, "LED Power Indicator", 1, ["Follow the status of load (Energy mode)${defaultOptionSuffix}":0, "Follow the status (on/off) of load. Red LED turns off after 5 sec if no change (Momentary indicate mode)":1], "ledIndicator")
 }
 
-private getPowerValueChangeParam() {
-	return createConfigParamMap(151, "Power Report Value Change", 2, getPowerValueOptions(), "powerValueChange")
-}
+//private getPowerValueChangeParam() {
+//	return createConfigParamMap(151, "Power Report Value Change", 2, getPowerValueOptions(), "powerValueChange")
+//}
 
-private getPowerPercentageChangeParam() {
-	return createConfigParamMap(152, "Power Report Percentage Change", 1, getPercentageOptions(10, "No Reports"), "powerPercentageChange")
-}
+//private getPowerPercentageChangeParam() {
+//	return createConfigParamMap(152, "Power Report Percentage Change", 1, getPercentageOptions(10, "No Reports"), "powerPercentageChange")
+//}
 
 private getPowerReportIntervalParam() {
 	return createConfigParamMap(171, "Power Reporting Interval", 4, getIntervalOptions(30, "No Reports"), "powerReportingInterval")
@@ -626,7 +648,7 @@ private getElectricityReportIntervalParam() {
 }
 
 private getParamStoredIntVal(param) {
-	//return state["configVal${param.num}"]	
+	return state["configVal${param.num}"]
 }
 
 private getParamIntVal(param) {
@@ -658,6 +680,14 @@ private getInactivePowerSetting() {
 
 private getDebugOutputSetting() {
 	return settings?.debugOutput != false
+}
+
+private getTraceOutputSetting() {
+	return settings?.traceOutput != false
+}
+
+private getDisableSwitchSetting() {
+	return settings?.disableSwitch != false
 }
 
 private getMinimumReportingInterval() {
@@ -771,11 +801,11 @@ private createEventMap(name, value, displayed=null, desc=null, unit=null) {
 	}
 	
 	if (desc && eventMap.displayed) {
-		log.debug desc
+		logDebug desc
 		eventMap.descriptionText = "${device.displayName} - ${desc}"
 	}
 	else {
-		log.trace "Creating Event: ${eventMap}"
+		logTrace "Creating Event: ${eventMap}"
 	}
 	return eventMap
 }
@@ -785,7 +815,7 @@ private getAttrVal(attrName) {
 		return device?.currentValue("${attrName}")
 	}
 	catch (ex) {
-		log.trace "$ex"
+		logTrace "$ex"
 		return null
 	}
 }
@@ -816,12 +846,14 @@ private isDuplicateCommand(lastExecuted, allowedMil) {
 	!lastExecuted ? false : (lastExecuted + allowedMil > new Date().time) 
 }
 
-//private logDebug(msg) {
-//	if (debugOutputSetting) {
-//		log.debug "$msg"
-//	}
-//}
+private logDebug(msg) {
+	if (debugOutputSetting) {
+		log.debug "$msg"
+	}
+}
 
-//private logtrace(msg) {
-//	// log.trace "$msg"
-//}
+private logTrace(msg) {
+	if (traceOutputSetting) {
+	log.trace "$msg"
+    }
+}
