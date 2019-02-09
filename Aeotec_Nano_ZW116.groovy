@@ -88,10 +88,6 @@ metadata {
 			required: false,
 			displayDuringSetup: true
 			
-	//	["Power", "Energy", "Voltage", "Current"].each {
-	//		getBoolInput("display${it}", "Display ${it} Activity", true)
-	//	}
-
 		getBoolInput("disableSwitch", "Disable On/Off Switch", false)
 		getBoolInput("traceOutput", "Enable Trace Logging", false)
         getBoolInput("debugOutput", "Enable Debug Logging", false)
@@ -407,11 +403,6 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport 
 		def name = configParam.options?.find { it.value == val}?.key
 		logDebug "${configParam.name}(#${configParam.num}) = ${name != null ? name : val} (${val})"
 		state["configVal${cmd.parameterNumber}"] = val
-		
-//		if (configParam.num == overloadProtectionParam.num) {
-//			refreshHistory()
-//		}
-		
 	}	
 	else {
 		logDebug "Parameter ${cmd.parameterNumber} = ${val}"
@@ -572,10 +563,6 @@ def refreshHistory() {
 		items["${it}High"] = "${it.capitalize()} - High"
 	}
 	
-//	if (getParamStoredIntVal(overloadProtectionParam) == 0) {
-//		history += "*** Overload Protection Disabled ***\n"
-//	}
-	
 	items.each { attrName, caption ->
 		def attr = device.currentState("${attrName}")
 		def val = attr?.value ?: ""
@@ -596,14 +583,7 @@ private getConfigParams() {
 	return [
 		instantPowerValuesParam,
 		instantPowerFrequencyParam,
-//		onOffNotificationsParam,
 		ledIndicatorParam,
-//		powerValueChangeParam,
-//		powerPercentageChangeParam,
-//		powerReportIntervalParam,
-//		energyReportIntervalParam,
-//		voltageReportIntervalParam,
-//		electricityReportIntervalParam
 	]
 }
 
@@ -615,37 +595,9 @@ private getinstantPowerFrequencyParam() {
 	return createConfigParamMap(111, "Instantaneous Power Report Frequency", 4, ["10 Seconds":10, "30 Seconds${defaultOptionSuffix}":30, "1 Minute":60, "2 Minutes":120, "5 Minutes":300], "instantPowerFrequency")
 }
 
-//private getOnOffNotificationsParam() {
-//	return createConfigParamMap(24, "On/Off Notifications", 1, null, null, 2) // 2:Manual switch only
-//}
-
 private getLedIndicatorParam() {
 	return createConfigParamMap(83, "LED Power Indicator", 1, ["Follow the status of load (Energy mode)${defaultOptionSuffix}":0, "Follow the status (on/off) of load. Red LED turns off after 5 sec if no change (Momentary indicate mode)":1], "ledIndicator")
 }
-
-//private getPowerValueChangeParam() {
-//	return createConfigParamMap(151, "Power Report Value Change", 2, getPowerValueOptions(), "powerValueChange")
-//}
-
-//private getPowerPercentageChangeParam() {
-//	return createConfigParamMap(152, "Power Report Percentage Change", 1, getPercentageOptions(10, "No Reports"), "powerPercentageChange")
-//}
-
-//private getPowerReportIntervalParam() {
-//	return createConfigParamMap(171, "Power Reporting Interval", 4, getIntervalOptions(30, "No Reports"), "powerReportingInterval")
-//}
-
-//private getEnergyReportIntervalParam() {
-//	return createConfigParamMap(172, "Energy Reporting Interval", 4, getIntervalOptions(300, "No Reports"), "energyReportingInterval")	
-//}
-
-//private getVoltageReportIntervalParam() {
-//	return createConfigParamMap(173, "Voltage Reporting Interval", 4, getIntervalOptions(0, "No Reports"), "voltageReportingInterval")	
-//}
-
-//private getElectricityReportIntervalParam() {
-//	return createConfigParamMap(174, "Electrical Current Reporting Interval", 4, getIntervalOptions(0, "No Reports"), "electricityReportingInterval")	
-//}
 
 private getParamStoredIntVal(param) {
 	return state["configVal${param.num}"]
@@ -692,12 +644,6 @@ private getDisableSwitchSetting() {
 
 private getMinimumReportingInterval() {
 	def minVal = (60 * 60 * 24 * 7)
-//	[powerReportIntervalParam, energyReportIntervalParam, voltageReportIntervalParam, electricityReportIntervalParam].each {
-//		def val = convertOptionSettingToInt(it.options, it.val)
-//		if (val && val < minVal) {
-//			minVal = val
-//		}		
-//	}
 	return minVal
 }
 
