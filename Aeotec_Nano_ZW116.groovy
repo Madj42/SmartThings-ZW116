@@ -1,5 +1,5 @@
 /**
- *  Aoetec Nano Switch w/ Power Metering v1.0
+ *  Aoetec Nano Switch w/ Power Metering v1.1
  *  (Models: ZW116)
  *
  *  Author: 
@@ -88,9 +88,9 @@ metadata {
 			required: false,
 			displayDuringSetup: true
 			
-		["Power", "Energy", "Voltage", "Current"].each {
-			getBoolInput("display${it}", "Display ${it} Activity", true)
-		}
+	//	["Power", "Energy", "Voltage", "Current"].each {
+	//		getBoolInput("display${it}", "Display ${it} Activity", true)
+	//	}
 
 		getBoolInput("disableSwitch", "Disable On/Off Switch", false)
 		getBoolInput("traceOutput", "Enable Trace Logging", false)
@@ -631,21 +631,21 @@ private getLedIndicatorParam() {
 //	return createConfigParamMap(152, "Power Report Percentage Change", 1, getPercentageOptions(10, "No Reports"), "powerPercentageChange")
 //}
 
-private getPowerReportIntervalParam() {
-	return createConfigParamMap(171, "Power Reporting Interval", 4, getIntervalOptions(30, "No Reports"), "powerReportingInterval")
-}
+//private getPowerReportIntervalParam() {
+//	return createConfigParamMap(171, "Power Reporting Interval", 4, getIntervalOptions(30, "No Reports"), "powerReportingInterval")
+//}
 
-private getEnergyReportIntervalParam() {
-	return createConfigParamMap(172, "Energy Reporting Interval", 4, getIntervalOptions(300, "No Reports"), "energyReportingInterval")	
-}
+//private getEnergyReportIntervalParam() {
+//	return createConfigParamMap(172, "Energy Reporting Interval", 4, getIntervalOptions(300, "No Reports"), "energyReportingInterval")	
+//}
 
-private getVoltageReportIntervalParam() {
-	return createConfigParamMap(173, "Voltage Reporting Interval", 4, getIntervalOptions(0, "No Reports"), "voltageReportingInterval")	
-}
+//private getVoltageReportIntervalParam() {
+//	return createConfigParamMap(173, "Voltage Reporting Interval", 4, getIntervalOptions(0, "No Reports"), "voltageReportingInterval")	
+//}
 
-private getElectricityReportIntervalParam() {
-	return createConfigParamMap(174, "Electrical Current Reporting Interval", 4, getIntervalOptions(0, "No Reports"), "electricityReportingInterval")	
-}
+//private getElectricityReportIntervalParam() {
+//	return createConfigParamMap(174, "Electrical Current Reporting Interval", 4, getIntervalOptions(0, "No Reports"), "electricityReportingInterval")	
+//}
 
 private getParamStoredIntVal(param) {
 	return state["configVal${param.num}"]
@@ -692,12 +692,12 @@ private getDisableSwitchSetting() {
 
 private getMinimumReportingInterval() {
 	def minVal = (60 * 60 * 24 * 7)
-	[powerReportIntervalParam, energyReportIntervalParam, voltageReportIntervalParam, electricityReportIntervalParam].each {
-		def val = convertOptionSettingToInt(it.options, it.val)
-		if (val && val < minVal) {
-			minVal = val
-		}		
-	}
+//	[powerReportIntervalParam, energyReportIntervalParam, voltageReportIntervalParam, electricityReportIntervalParam].each {
+//		def val = convertOptionSettingToInt(it.options, it.val)
+//		if (val && val < minVal) {
+//			minVal = val
+//		}		
+//	}
 	return minVal
 }
 
